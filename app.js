@@ -27,6 +27,7 @@ app.configure(function(){
   app.use(express.static(path.join(__dirname, 'public')));
 
   // Setup local variables to be available in the views.
+  app.locals.config = config;
   app.locals.title = config.title || "Dillinger.";
   app.locals.description = config.description || "Dillinger, the last Markdown Editor, ever.";
   if (config.googleWebmasterMeta) {
@@ -47,62 +48,65 @@ app.get('/', routes.index);
 app.get('/not-implemented', routes.not_implemented);
 
 /* Begin Dropbox */
+if (config.dropbox) { 
+  app.get('/redirect/dropbox', routes.oauth_dropbox_redirect);
 
-app.get('/redirect/dropbox', routes.oauth_dropbox_redirect);
+  app.get('/oauth/dropbox', routes.oauth_dropbox);
 
-app.get('/oauth/dropbox', routes.oauth_dropbox);
+  app.get('/unlink/dropbox', routes.unlink_dropbox);
 
-app.get('/unlink/dropbox', routes.unlink_dropbox);
+  app.post('/import/dropbox', routes.import_dropbox);
 
-app.post('/import/dropbox', routes.import_dropbox);
+  // app.get('/account/dropbox', routes.account_info_dropbox)
 
-// app.get('/account/dropbox', routes.account_info_dropbox)
+  app.post('/fetch/dropbox', routes.fetch_dropbox_file);
 
-app.post('/fetch/dropbox', routes.fetch_dropbox_file);
+  app.post('/save/dropbox', routes.save_dropbox);
 
-app.post('/save/dropbox', routes.save_dropbox);
-
+}
 
 /* End Dropbox */
 
 /* Begin Github */
 
-app.get('/redirect/github', routes.oauth_github_redirect);
+if (config.github){ 
+  app.get('/redirect/github', routes.oauth_github_redirect);
 
-app.get('/oauth/github', routes.oauth_github);
+  app.get('/oauth/github', routes.oauth_github);
 
-app.get('/unlink/github', routes.unlink_github);
+  app.get('/unlink/github', routes.unlink_github);
 
-// app.get('/account/github', routes.account_info_github)
+  // app.get('/account/github', routes.account_info_github)
 
-app.post('/import/github/orgs', routes.import_github_orgs);
+  app.post('/import/github/orgs', routes.import_github_orgs);
 
-app.post('/import/github/repos', routes.import_github_repos);
+  app.post('/import/github/repos', routes.import_github_repos);
 
-app.post('/import/github/branches', routes.import_github_branches);
+  app.post('/import/github/branches', routes.import_github_branches);
 
-app.post('/import/github/tree_files', routes.import_tree_files);
+  app.post('/import/github/tree_files', routes.import_tree_files);
 
-app.post('/import/github/file', routes.import_github_file);
+  app.post('/import/github/file', routes.import_github_file);
 
-app.post('/save/github', routes.save_github);
-
+  app.post('/save/github', routes.save_github);
+}
 /* End Github */
 
 /* Begin Google Drive */
 
-app.get('/redirect/googledrive', routes.oauth_googledrive_redirect);
+if (config.googleDrive){
+  app.get('/redirect/googledrive', routes.oauth_googledrive_redirect);
 
-app.get('/oauth/googledrive', routes.oauth_googledrive);
+  app.get('/oauth/googledrive', routes.oauth_googledrive);
 
-app.get('/unlink/googledrive', routes.unlink_googledrive);
+  app.get('/unlink/googledrive', routes.unlink_googledrive);
 
-app.get('/import/googledrive', routes.import_googledrive);
+  app.get('/import/googledrive', routes.import_googledrive);
 
-app.get('/fetch/googledrive', routes.fetch_googledrive_file);
+  app.get('/fetch/googledrive', routes.fetch_googledrive_file);
 
-app.post('/save/googledrive', routes.save_googledrive);
-
+  app.post('/save/googledrive', routes.save_googledrive);
+}
 /* End Google Drive */
 
 
@@ -129,6 +133,23 @@ app.post('/factory/fetch_pdf', routes.fetch_pdf);
 app.get('/files/pdf/:pdf', routes.download_pdf);
 
 /* End Dillinger Actions */
+
+/* Start server files */
+if (config.serverFiles){
+  app.post('/import/server_files', routes.import_server_files);
+
+  app.post('/import/server_file', routes.load_server_file);
+
+  app.post('/save/server_file', routes.save_server_file);
+
+  app.post('/delete/server_file', routes.delete_server_file);
+
+  app.post('/import/media_files', routes.import_media_files);
+
+  app.post('/save/media_file', routes.upload_media_file);
+}
+
+/* end server files */
 
 
 http.createServer(app).listen(app.get('port'), function(){

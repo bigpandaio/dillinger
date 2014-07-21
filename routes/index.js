@@ -5,6 +5,9 @@ var path = require('path')
   , Dropbox = require( path.resolve(__dirname, '../plugins/dropbox/dropbox.js') ).Dropbox
   , Github = require( path.resolve(__dirname, '../plugins/github/github.js') ).Github
   , GoogleDrive = require('../plugins/googledrive/googledrive.js').GoogleDrive
+  , glob = require('glob')
+  , config = require('../config')()
+  , fs = require('fs');
 
 // Show the home page
 exports.index = function(req, res) {
@@ -17,7 +20,9 @@ exports.index = function(req, res) {
     isGoogleDriveAuth: !!req.session.isGoogleDriveSynced,
     isDropboxConfigured: Dropbox.isConfigured,
     isGithubConfigured: Github.isConfigured,
-    isGoogleDriveConfigured: GoogleDrive.isConfigured
+    isGoogleDriveConfigured: GoogleDrive.isConfigured,
+    isLocalStorageEnabled: config.localStorage,
+    isServerFilesEnabled: config.serverFiles
   }
 
   if (!req.session.isEvernoteSynced) {
@@ -343,3 +348,58 @@ exports.save_googledrive = function(req, res) {
 }
 
 /* End of Google Drive stuff */
+
+/* Start of server files stuff */
+
+exports.import_server_files = function(req, res){
+  glob(config.serverFiles.docsBasePath + "/**.md", function(err, files){
+    res.send({
+      files:files.map(function(mdFile){
+        return mdFile.replace(config.serverFiles.docsBasePath + "/", "");
+      })
+    });
+  });
+};
+
+exports.load_server_file = function(req, res){
+  var path = config.serverFiles.docsBasePath + "/" +  req.body.filename;
+
+  fs.readFile(path, function(err, file){
+    return res.send("text/text", file.toString().replace("(/media", "(" + config.serverFiles.docsBaseUrl + "/media"));
+  });
+};
+
+exports.save_server_file = function(req, res){
+  var data = req.body.data.replace(config.serverFiles.docsBaseUrl, "");
+  var filename = req.body.filename;
+  fs.writeFile(config.serverFiles.docsBasePath + "/" +  filename, data, function(err){
+    res.send(200);
+  });
+};
+
+exports.delete_server_file = function(req, res){
+  fs.unlink(config.serverFiles.docsBasePath + req.body.filename, function(err){
+    res.send(200);
+  });
+};
+
+exports.import_media_files = function(req, res){
+  glob(config.serverFiles.docsBasePath + "/media/**/*.!(md|yaml)", function(err, files){
+    res.send({
+      files:files.map(function(mdFile){
+        return mdFile.replace(config.serverFiles.docsBasePath + "/", "");
+      })
+    });
+  });
+}
+
+exports.upload_media_file = function(req, res){
+  fs.readFile(req.files.uploadImage.path, function (err, data) {
+    var newPath = config.serverFiles.docsBaseUrl + "/media/" + req.files.uploadImage.name;
+    fs.writeFile(newPath, data, function (err) {
+      res.send(200, "media/" + req.files.uploadImage.name);
+  });
+});
+}
+
+/* End of server files stuff */

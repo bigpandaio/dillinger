@@ -13,11 +13,16 @@
     <div class="container-fluid">
       <a class="brand" href="#">Dillinger</a>
       <ul class="nav" role="navigation">
-
+      <% if(isLocalStorageEnabled){ %>
         <li class="dropdown">
           <%- include local_files %>
         </li>
-
+      <% } %>
+      <% if(isServerFilesEnabled){ %>
+        <li class="dropdown">
+          <%- include server_files %>
+        </li>
+      <% } %>
         <li class="dropdown">
           <%- include dropbox %>
         </li>

@@ -10,7 +10,7 @@ $(function() {
       , showPaper: false
       , currentFile: ''
       , autosave: {
-          enabled: true
+          enabled: false //TODO: Move to config as well 
         , interval: 3000 // might be too aggressive; don't want to block UI for large saves.
         }
       , wordcount: true
@@ -23,6 +23,7 @@ $(function() {
           filepath: '/Dillinger/'
         }
       , local_files: { "Untitled Document": "" }
+      , server_files: { }
       , editing: 'markdown-gfm'
       , editors: {
         'markdown-gfm': { type: 'markdown-gfm', name: 'Github Markdown', fileExts: ['.md', '.markdown', '.mdown'] }
@@ -472,7 +473,12 @@ $(function() {
   function saveFile(eventType) {
 
     updateUserProfile({ currentFile: editor.getSession().getValue() })
+    if (window.docsBaseUrl){
+      ServerFiles.saveFile({ show: false })
+      Notifier.showMessage("Markdown saved on server");
+    }
 
+    
     if((typeof eventType === 'object') && eventType.manual === true) {
       Notifier.showMessage(Notifier.messages.docSavedLocal)
     }
@@ -489,7 +495,11 @@ $(function() {
       autoInterval = setInterval(function() {
         // firefox barfs if I don't pass in anon func to setTimeout.
         saveFile()
-        LocalFiles.saveFile({ show: false })
+        if (window.docsBaseUrl) {
+          ServerFiles.saveFile({ show: false })
+        } else {
+          LocalFiles.saveFile({ show: false })
+        }
       }, profile.autosave.interval)
 
     }
@@ -1094,6 +1104,35 @@ $(function() {
         return false;
       })
 
+    $('#new_server_file')
+      .on('click', function() {
+        $('.dropdown').removeClass('open')
+        ServerFiles.newFile();
+        return false;
+      })
+
+    $('#import_media_files')
+      .on('click', function() {
+        $('.dropdown').removeClass('open')
+        ServerFiles.getImages();
+        return false;
+      })
+
+    $('#import_server_file')
+      .on('click', function() {
+        $('.dropdown').removeClass('open')
+        ServerFiles.search();
+        return false;
+      })
+
+    $('#save_server_file')
+      .on('click', function() {
+        $('.dropdown').removeClass('open')
+        ServerFiles.saveFile();
+        return false;
+      })
+
+
     $('#editor-dropdown')
       .on('click', 'li > a', function() {
         var pickEditor = $(this).attr("data-value")
@@ -1135,7 +1174,11 @@ $(function() {
       },
       exec: function() {
         saveFile()
-        LocalFiles.saveFile()
+        if (window.docsBaseUrl){
+          ServerFiles.saveFile()
+        } else {
+          LocalFiles.saveFile()
+        }
       }
     }
     var fileForUrlNamer = {
@@ -1263,6 +1306,18 @@ $(function() {
         LocalFiles.loadFile(fileName)
         return false
       })
+      .on('click', '.server_media_file', function() {
+        var fileName = $(this).parent('li').attr('data-file-name')
+        window.ace.edit('editor').insert("![" + fileName + "](" + window.docsBaseUrl + fileName + ")\n");
+        previewMd();
+        $('#modal-generic').modal('hide')
+        return false
+      })
+
+      .on('click', '.server_media_file_upload', function() {
+        ServerFiles.uploadImage($(this).parents("form"));
+        return false
+      })
       .on('click', '.delete_local_file', function() {
         var $parentLi = $(this).parent('li')
         var fileName = $parentLi.attr('data-file-name')
@@ -1270,7 +1325,19 @@ $(function() {
         $parentLi.remove()
         return false
       })
-
+      .on('click', '.server_file', function() {
+        var fileName = $(this).parent('li').attr('data-file-name')
+        profile.current_filename = $(this).html()
+        ServerFiles.loadFile(fileName)
+        return false
+      })
+      .on('click', '.delete_server_file', function() {
+        var $parentLi = $(this).parent('li')
+        var fileName = $parentLi.attr('data-file-name')
+        ServerFiles.deleteFile(fileName)
+        $parentLi.remove()
+        return false
+      })
       // Check for support of drag/drop
       if('draggable' in document.createElement('span')) {
         $('#editor')
@@ -2288,10 +2355,235 @@ $(function() {
   })() // end IIFE
   window.foo = LocalFiles.saveFile
 
-  init()
+
+
+  // ServerFiles Module
+  var ServerFiles = (function() {
+
+    // Sorting regardless of upper/lowercase
+    // TODO: Let's be DRY and merge this with the
+    // sort method in Github module.
+    function _alphaNumSort(m,n) {
+      var a = m.toLowerCase()
+      var b = n.toLowerCase()
+      if (a === b) { return 0 }
+      if (isNaN(m) || isNaN(n)) { return (a > b ? 1 : -1) }
+      else { return m-n }
+    }
+
+    function _listServerMdFiles(files) {
+
+      var list = '<ul>'
+
+      // Sort alpha
+      files.sort(_alphaNumSort)
+
+      files.forEach(function(item) {
+        // var name = item.path.split('/').pop()
+        list += '<li data-file-name="'
+              + item + '"><a class="delete_server_file"><i class="icon-remove"></i></a><a class="server_file" href="#">'
+              + item + '</a></li>'
+      })
+
+      list += '</ul>'
+
+      $('.modal-header h3').text('Your Server Files')
+
+      $('.modal-body').html(list)
+
+      $('#modal-generic').modal({
+        keyboard: true
+        , backdrop: false
+        , show: true
+      })
+
+      return false
+
+    }
+
+    function _listServerMediaFiles(files) {
+
+      var list = '<div><form><input type="file" accept="image/*"><button type="button" class="server_media_file_upload">Upload</button></form></div><ul>'
+
+      // Sort alpha
+      files.sort(_alphaNumSort)
+
+      files.forEach(function(item) {
+        // var name = item.path.split('/').pop()
+        list += '<li data-file-name="'
+              + item + '" ><img class="server_media_file" src="' + window.docsBaseUrl + item + '" alt="'+ item + '" height="40px" width="40px" /></li>'
+      })
+
+      list += '</ul>'
+
+      $('.modal-header h3').text('Your Media Files')
+
+      $('.modal-body').html(list)
+
+      $('#modal-generic').modal({
+        keyboard: true
+        , backdrop: false
+        , show: true
+      })
+
+      return false
+
+    }
+
+    return {
+      uploadImage: function(form){
+        function _doneHandler(a, b, response) {
+          a = b = null
+          response = response.responseText;
+          var li =  '<li data-file-name="'
+              + response+ '" ><img class="server_media_file" src="' + window.docsBaseUrl + response + '" alt="'+ response + '" height="40px" width="40px" /></li>';
+          setTimeout(function(){
+            $(form).parents("div").next("ul").append(li)
+          }, 1000);
+         }
+         var formData = new FormData();
+      
+         var input = $("input[type='file']", form)[0];     
+         formData.append("uploadImage", input.files[0]);
+         var config = {
+            type: 'POST'
+          , dataType: 'text'
+          , url: '/save/media_file'
+          , success: _doneHandler
+          , data: formData
+          , processData: false
+          , contentType: false
+          }
+
+          $.ajax(config);
+       },
+      getImages: function(){
+        function _doneHandler(a, b, response) {
+          a = b = null
+          response = JSON.parse(response.responseText)
+          // Don't throw error if user has no orgs, still has individual user.
+          _listServerMediaFiles(response.files);
+        } // end done handler
+        var config = {
+            type: 'POST'
+          , dataType: 'text'
+          , url: '/import/media_files'
+          , success: _doneHandler
+          }
+
+          $.ajax(config)
+
+      },
+      newFile: function() {
+        updateFilename("")
+        setCurrentFilenameField()
+        editor.getSession().setValue("")
+      },
+      search: function() {
+        function _beforeSendHandler() {
+          Notifier.showMessage('Fetching Server files...')
+        }
+
+        function _doneHandler(a, b, response) {
+          a = b = null
+          response = JSON.parse(response.responseText)
+          // Don't throw error if user has no orgs, still has individual user.
+          _listServerMdFiles(response.files);
+
+          profile.server_files = response.files;
+        } // end done handler
+
+        function _failHandler(resp, err) {
+          alert(resp.responseText || "Roh-roh. Something went wrong. :(")
+        }
+
+        var config = {
+          type: 'POST'
+        , dataType: 'text'
+        , url: '/import/server_files'
+        , beforeSend: _beforeSendHandler
+        , error: _failHandler
+        , success: _doneHandler
+        }
+
+        $.ajax(config)
+      },
+      loadFile: function(fileName) {
+        function _beforeSendHandler() {
+          Notifier.showMessage('Loading Markdown from server...')
+        }
+
+        function _doneHandler(a, b, response) {
+          a = b = null
+          profile.server_files[fileName] = response.responseText;
+          // Don't throw error if user has no orgs, still has individual user.
+          editor.getSession().setValue(profile.server_files[fileName])
+          previewMd()
+          Github.clear()
+          $('#modal-generic').modal('hide')
+
+        } // end done handler
+
+        updateFilename(fileName)
+        setCurrentFilenameField()
+          var config = {
+            type: 'POST'
+          , dataType: 'text'
+          , url: '/import/server_file'
+          , beforeSend: _beforeSendHandler
+          , success: _doneHandler
+          , data: {
+            'filename': fileName
+          }
+          }
+
+          $.ajax(config)
+
+      },
+      saveFile: function(showNotice) {
+        function _doneHandler(a, b, response) {
+          a = b = null
+          updateUserProfile(saveObj)
+
+          if((typeof showNotice !== 'object') || showNotice.show !== false) {
+            Notifier.showMessage("Markdown saved on server");
+          }  
+          //$('#modal-generic').modal('hide')
+        }
+        var fileName = getCurrentFilenameFromField()
+        var md = editor.getSession().getValue()
+        var saveObj = { server_files: { } }
+        saveObj.server_files[fileName] = md
+
+        var config = {
+          type: 'POST'
+          , dataType: 'text'
+          , url: '/save/server_file'
+          , success: _doneHandler
+          , data: {
+            'filename': fileName,
+            data:       md
+          }
+        };
+
+        $.ajax(config)
+        
+
+      },
+      deleteFile: function(fileName) {
+        var files = profile.server_files;
+        //TODO: Ajax here to /delete/server_file
+        delete profile.server_files[fileName];
+        updateUserProfile()
+        Notifier.showMessage(Notifier.messages.docDeletedServer)
+      }
+    } // end return obj
+  })() // end IIFE
+  window.bar = ServerFiles.saveFile
 
   // TODO:  add window.resize() handlers.
-
+  
+  init()
 })
 
 /**
