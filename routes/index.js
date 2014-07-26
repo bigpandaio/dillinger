@@ -354,10 +354,11 @@ exports.save_googledrive = function(req, res) {
 exports.import_server_files = function(req, res){
   glob(config.serverFiles.docsBasePath + "/!(node_modules|dillinger)**/*.md", function(err, files){
     glob(config.serverFiles.docsBasePath + "/*.md", function(err, file){
-    res.send({
-      files:file.concat(files).map(function(mdFile){
-        return mdFile.replace(config.serverFiles.docsBasePath + "/", "");
-      })
+      res.send({
+        files:file.concat(files).map(function(mdFile){
+          return mdFile.replace(config.serverFiles.docsBasePath + "/", "");
+        })
+      });
     });
   });
 };
