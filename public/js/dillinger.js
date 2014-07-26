@@ -2571,11 +2571,24 @@ $(function() {
 
       },
       deleteFile: function(fileName) {
-        var files = profile.server_files;
-        //TODO: Ajax here to /delete/server_file
-        delete profile.server_files[fileName];
-        updateUserProfile()
-        Notifier.showMessage(Notifier.messages.docDeletedServer)
+        function _doneHandler(a, b, response) {
+          a = b = null
+          updateUserProfile()
+          delete profile.server_files[fileName];
+          Notifier.showMessage("Document deleted on server");
+          //$('#modal-generic').modal('hide')
+        }
+        var config = {
+          type: 'POST'
+          , dataType: 'text'
+          , url: '/delete/server_file'
+          , success: _doneHandler
+          , data: {
+            'filename': fileName
+          }
+        };
+
+        $.ajax(config)
       }
     } // end return obj
   })() // end IIFE

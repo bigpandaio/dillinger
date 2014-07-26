@@ -352,9 +352,10 @@ exports.save_googledrive = function(req, res) {
 /* Start of server files stuff */
 
 exports.import_server_files = function(req, res){
-  glob(config.serverFiles.docsBasePath + "/**.md", function(err, files){
+  glob(config.serverFiles.docsBasePath + "/!(node_modules|dillinger)**/*.md", function(err, files){
+    glob(config.serverFiles.docsBasePath + "/*.md", function(err, file){
     res.send({
-      files:files.map(function(mdFile){
+      files:file.concat(files).map(function(mdFile){
         return mdFile.replace(config.serverFiles.docsBasePath + "/", "");
       })
     });
@@ -395,7 +396,7 @@ exports.import_media_files = function(req, res){
 
 exports.upload_media_file = function(req, res){
   fs.readFile(req.files.uploadImage.path, function (err, data) {
-    var newPath = config.serverFiles.docsBaseUrl + "/media/" + req.files.uploadImage.name;
+    var newPath = config.serverFiles.docsBasePath+ "/media/" + req.files.uploadImage.name;
     fs.writeFile(newPath, data, function (err) {
       res.send(200, "media/" + req.files.uploadImage.name);
   });
