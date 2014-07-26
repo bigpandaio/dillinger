@@ -380,7 +380,7 @@ exports.save_server_file = function(req, res){
 };
 
 exports.delete_server_file = function(req, res){
-  fs.unlink(config.serverFiles.docsBasePath + req.body.filename, function(err){
+  fs.unlink(config.serverFiles.docsBasePath + "/" +  req.body.filename, function(err){
     res.send(200);
   });
 };
