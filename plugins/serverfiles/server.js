@@ -53,10 +53,8 @@ var import_media_files = function(req, res){
 };
 
 var upload_media_file = function(req, res){
-  console.log("WTF32");
   fs.readFile(req.files.uploadImage.path, function (err, data) {
     var newPath = config.docs_base_path + "/media/" + req.files.uploadImage.name;
-    console.log(newPath);
     fs.writeFile(newPath, data, function (err) {
       res.send(200, "media/" + req.files.uploadImage.name);
     });
